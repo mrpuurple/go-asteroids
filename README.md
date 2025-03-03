@@ -10,6 +10,7 @@ go mod init asteroids
 
 ```sh
 go get github.com/hajimehoshi/ebiten/v2
+go get github.com/solarlune/resolv@v0.8
 ```
 
 ## Create the program

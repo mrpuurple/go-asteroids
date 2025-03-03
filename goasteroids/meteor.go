@@ -6,6 +6,7 @@ import (
 	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/solarlune/resolv"
 )
 
 const (
@@ -22,11 +23,12 @@ type Meteor struct {
 	angle         float64
 	rotationSpeed float64
 	sprite        *ebiten.Image
+	meteorObj     *resolv.Circle
 }
 
 func NewMeteor(baseVelocity float64, g *GameScene, index int) *Meteor {
 	// Target the center of the screen.
-	target := Vector {
+	target := Vector{
 		X: ScreenWidth / 2,
 		Y: ScreenHeight / 2,
 	}
@@ -64,15 +66,23 @@ func NewMeteor(baseVelocity float64, g *GameScene, index int) *Meteor {
 	// Assign a sprite to the meteor.
 	sprite := assets.MeteorSprites[rand.Intn(len(assets.MeteorSprites))]
 
+	// Create the collision object.
+	meteorObj := resolv.NewCircle(pos.X, pos.Y, float64(sprite.Bounds().Dx()/2))
+
 	// Creata a meteor object and return it.
 	m := &Meteor{
-		game: g,
-		position: pos,
-		movement: movement,
+		game:          g,
+		position:      pos,
+		movement:      movement,
 		rotationSpeed: rotationSpeedMin + rand.Float64()*(rotationSpeedMax-rotationSpeedMin),
-		sprite: sprite,
-		angle: angle,
+		sprite:        sprite,
+		angle:         angle,
+		meteorObj:     meteorObj,
 	}
+
+	m.meteorObj.SetPosition(pos.X, pos.Y)
+	m.meteorObj.Tags().Set(TagMeteor | TagLarge)
+	m.meteorObj.SetData(&ObjectData{index: index})
 
 	return m
 }
@@ -87,6 +97,7 @@ func (m *Meteor) Update() {
 
 	// Keep meteor on screen.
 	m.keepOnScreen()
+	m.meteorObj.SetPosition(m.position.X, m.position.Y)
 }
 
 func (m *Meteor) Draw(screen *ebiten.Image) {
@@ -107,14 +118,18 @@ func (m *Meteor) Draw(screen *ebiten.Image) {
 func (m *Meteor) keepOnScreen() {
 	if m.position.X >= float64(ScreenWidth) {
 		m.position.X = 0
+		m.meteorObj.SetPosition(0, m.position.Y)
 	}
 	if m.position.X < 0 {
 		m.position.X = ScreenWidth
+		m.meteorObj.SetPosition(ScreenWidth, m.position.Y)
 	}
 	if m.position.Y >= float64(ScreenHeight) {
 		m.position.Y = 0
+		m.meteorObj.SetPosition(m.position.X, 0)
 	}
 	if m.position.Y < 0 {
 		m.position.Y = ScreenHeight
+		m.meteorObj.SetPosition(m.position.X, ScreenHeight)
 	}
 }
