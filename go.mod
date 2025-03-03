@@ -12,6 +12,7 @@ require (
 	github.com/hajimehoshi/ebiten v1.12.12 // indirect
 	github.com/hajimehoshi/ebiten/v2 v2.8.6 // indirect
 	github.com/jezek/xgb v1.1.1 // indirect
+	github.com/solarlune/resolv v0.8.1 // indirect
 	golang.org/x/exp v0.0.0-20190731235908-ec7cb31e5a56 // indirect
 	golang.org/x/mobile v0.0.0-20210208171126-f462b3930c8f // indirect
 	golang.org/x/sync v0.11.0 // indirect
