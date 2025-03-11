@@ -15,17 +15,19 @@ const (
 	numberOfSmallMeteorsFromLargeMeteor = 4
 )
 
+// Meteor is the type for all meteors, both big and small.
 type Meteor struct {
-	game          *GameScene
-	position      Vector
-	rotation      float64
-	movement      Vector
-	angle         float64
-	rotationSpeed float64
-	sprite        *ebiten.Image
-	meteorObj     *resolv.Circle
+	game          *GameScene     // Embed the game so we have access to it.
+	position      Vector         // Where is the meteor.
+	rotation      float64        // The rotation for the meteor.
+	movement      Vector         // What direction is it going.
+	angle         float64        // What angle is it moving at.
+	rotationSpeed float64        // The speed of rotation.
+	sprite        *ebiten.Image  // The image.
+	meteorObj     *resolv.Circle // The collision object.
 }
 
+// NewMeteor is a factory method which creates a new large meteor.
 func NewMeteor(baseVelocity float64, g *GameScene, index int) *Meteor {
 	// Target the center of the screen.
 	target := Vector{
@@ -33,11 +35,10 @@ func NewMeteor(baseVelocity float64, g *GameScene, index int) *Meteor {
 		Y: ScreenHeight / 2,
 	}
 
-	// Pick a random angle.
+	// Pick a random angle. 2π is 360°, so this returns an angle between 0° to 360°.
 	angle := rand.Float64() * 2 * math.Pi
 
-	// The distance from the center that meteor should spawn at.
-	// half the width, add some arbitrary distance.
+	// The distance from the center that meteor should spawn at. Half the width, add some arbitrary distance.
 	r := ScreenWidth/2.0 + 500
 
 	// Create the position vector, using the angle and simple math.
@@ -69,7 +70,7 @@ func NewMeteor(baseVelocity float64, g *GameScene, index int) *Meteor {
 	// Create the collision object.
 	meteorObj := resolv.NewCircle(pos.X, pos.Y, float64(sprite.Bounds().Dx()/2))
 
-	// Creata a meteor object and return it.
+	// Create a meteor object and return it.
 	m := &Meteor{
 		game:          g,
 		position:      pos,
@@ -87,6 +88,7 @@ func NewMeteor(baseVelocity float64, g *GameScene, index int) *Meteor {
 	return m
 }
 
+// Update updates all game scene elements for the next draw. It's called once per tick.
 func (m *Meteor) Update() {
 	dx := m.movement.X
 	dy := m.movement.Y
@@ -100,6 +102,7 @@ func (m *Meteor) Update() {
 	m.meteorObj.SetPosition(m.position.X, m.position.Y)
 }
 
+// Draw draws all game elements to the screen. It's called once per frame.
 func (m *Meteor) Draw(screen *ebiten.Image) {
 	bounds := m.sprite.Bounds()
 	halfW := float64(bounds.Dx()) / 2
@@ -115,6 +118,7 @@ func (m *Meteor) Draw(screen *ebiten.Image) {
 	screen.DrawImage(m.sprite, op)
 }
 
+// keepOnScreen keeps meteors on the screen.
 func (m *Meteor) keepOnScreen() {
 	if m.position.X >= float64(ScreenWidth) {
 		m.position.X = 0

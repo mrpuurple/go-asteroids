@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	LaserSpeedPerSecond = 1000.0
+	laserSpeedPerSecond = 1000.0
 )
 
 type Laser struct {
@@ -32,7 +32,7 @@ func NewLaser(pos Vector, rotation float64, index int, g *GameScene) *Laser {
 	pos.X -= halfW
 	pos.Y -= halfH
 
-	// Create the laser object.
+	// Create a laser object.
 	l := &Laser{
 		game:     g,
 		position: pos,
@@ -51,9 +51,9 @@ func NewLaser(pos Vector, rotation float64, index int, g *GameScene) *Laser {
 
 func (l *Laser) Update() {
 	// How fast should the laser go.
-	speed := LaserSpeedPerSecond / float64(ebiten.TPS())
+	speed := laserSpeedPerSecond / float64(ebiten.TPS())
 	dx := math.Sin(l.rotation) * speed
-	dy := -math.Cos(l.rotation) * -speed
+	dy := math.Cos(l.rotation) * -speed
 
 	l.position.X += dx
 	l.position.Y += dy
@@ -69,7 +69,10 @@ func (l *Laser) Draw(screen *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(-halfW, -halfH)
 	op.GeoM.Rotate(l.rotation)
-	op.GeoM.Translate(halfH, halfW)
+	op.GeoM.Translate(halfW, halfH)
+
+	op.GeoM.Translate(l.position.X, l.position.Y)
 
 	screen.DrawImage(l.sprite, op)
+	
 }

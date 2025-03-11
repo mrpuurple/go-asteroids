@@ -3,6 +3,7 @@ package goasteroids
 import (
 	"asteroids/assets"
 	"math"
+	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/solarlune/resolv"
@@ -11,11 +12,16 @@ import (
 const (
 	rotationPerSecond = math.Pi
 	maxAcceleration   = 8.0
-	ScreenWidth       = 1280
-	ScreenHeight      = 720
+	ScreenWidth       = 1280 // The width of the screen. We use a 16/9 aspect ratio.
+	ScreenHeight      = 720  // The height of the screen.
+	shootCoolDown     = time.Millisecond * 150
+	burstCoolDown     = time.Millisecond * 500
+	laserSpawnOffset  = 50.0
+	maxShotsPerBurst  = 3
 )
 
 var curAcceleration float64
+var shotsFired = 0
 
 type Player struct {
 	game           *GameScene
@@ -24,12 +30,14 @@ type Player struct {
 	position       Vector
 	playerVelocity float64
 	playerObj      *resolv.Circle
+	shootCoolDown  *Timer
+	burstCoolDown  *Timer
 }
 
 func NewPlayer(game *GameScene) *Player {
 	sprite := assets.PlayerSprite
 
-	// Center player on screen
+	// Center player on screen.
 	bounds := sprite.Bounds()
 	halfW := float64(bounds.Dx()) / 2
 	halfH := float64(bounds.Dy()) / 2
@@ -43,17 +51,18 @@ func NewPlayer(game *GameScene) *Player {
 	playerObj := resolv.NewCircle(pos.X, pos.Y, float64(sprite.Bounds().Dx()/2))
 
 	p := &Player{
-		sprite:   sprite,
-		game:     game,
-		position: pos,
-		playerObj: playerObj,
+		sprite:        sprite,
+		game:          game,
+		position:      pos,
+		playerObj:     playerObj,
+		shootCoolDown: NewTimer(shootCoolDown),
+		burstCoolDown: NewTimer(burstCoolDown),
 	}
 
 	p.playerObj.SetPosition(pos.X, pos.Y)
 	p.playerObj.Tags().Set(TagPlayer)
 
 	return p
-
 }
 
 func (p *Player) Draw(screen *ebiten.Image) {
@@ -86,12 +95,45 @@ func (p *Player) Update() {
 	p.accelerate()
 
 	p.playerObj.SetPosition(p.position.X, p.position.Y)
+
+	p.burstCoolDown.Update()
+
+	p.shootCoolDown.Update()
+
+	p.fireLasers()
+}
+
+func (p *Player) fireLasers() {
+	if p.burstCoolDown.IsReady() {
+		if p.shootCoolDown.IsReady() && ebiten.IsKeyPressed(ebiten.KeySpace) {
+			p.shootCoolDown.Reset()
+			shotsFired++
+			if shotsFired <= maxShotsPerBurst {
+				bounds := p.sprite.Bounds()
+				halfW := float64(bounds.Dx()) / 2
+				halfH := float64(bounds.Dy()) / 2
+
+				spawnPos := Vector{
+					p.position.X + halfW + math.Sin(p.rotation)*laserSpawnOffset,
+					p.position.Y + halfH + math.Cos(p.rotation)*-laserSpawnOffset,
+				}
+
+				p.game.laserCount++
+				laser := NewLaser(spawnPos, p.rotation, p.game.laserCount, p.game)
+				p.game.lasers[p.game.laserCount] = laser
+				p.game.space.Add(laser.laserObj)
+			} else {
+				p.burstCoolDown.Reset()
+				shotsFired = 0
+			}
+		}
+	}
 }
 
 func (p *Player) accelerate() {
-	p.keepOnScreen()
-
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
+		p.keepOnScreen()
+		
 		if curAcceleration < maxAcceleration {
 			curAcceleration = p.playerVelocity + 4
 		}
