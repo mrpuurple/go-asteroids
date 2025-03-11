@@ -18,6 +18,7 @@ var PlayerSprite = mustLoadImage("images/player.png")
 var TitleFont = mustLoadFontFace("fonts/title.ttf")
 var MeteorSprites = mustLoadImages("images/meteors/*.png")
 var MeteorSpritesSmall = mustLoadImages("images/meteors-small/*.png")
+var LaserSprite = mustLoadImage("images/laser.png")
 
 func mustLoadImages(path string) []*ebiten.Image {
 	matches, err := fs.Glob(assets, path)
