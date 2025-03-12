@@ -10,14 +10,15 @@ import (
 )
 
 const (
-	rotationPerSecond = math.Pi
-	maxAcceleration   = 8.0
-	ScreenWidth       = 1280 // The width of the screen. We use a 16/9 aspect ratio.
-	ScreenHeight      = 720  // The height of the screen.
-	shootCoolDown     = time.Millisecond * 150
-	burstCoolDown     = time.Millisecond * 500
-	laserSpawnOffset  = 50.0
-	maxShotsPerBurst  = 3
+	rotationPerSecond     = math.Pi
+	maxAcceleration       = 8.0
+	ScreenWidth           = 1280 // The width of the screen. We use a 16/9 aspect ratio.
+	ScreenHeight          = 720  // The height of the screen.
+	shootCoolDown         = time.Millisecond * 150
+	burstCoolDown         = time.Millisecond * 500
+	laserSpawnOffset      = 50.0
+	maxShotsPerBurst      = 3
+	dyingAnimationAmmount = 50 * time.Millisecond
 )
 
 var curAcceleration float64
@@ -32,6 +33,12 @@ type Player struct {
 	playerObj      *resolv.Circle
 	shootCoolDown  *Timer
 	burstCoolDown  *Timer
+	isShielded     bool
+	isDying        bool
+	isDead         bool
+	dyingTimer     *Timer
+	dyingCounter   int
+	livesRemaining int
 }
 
 func NewPlayer(game *GameScene) *Player {
@@ -57,6 +64,12 @@ func NewPlayer(game *GameScene) *Player {
 		playerObj:     playerObj,
 		shootCoolDown: NewTimer(shootCoolDown),
 		burstCoolDown: NewTimer(burstCoolDown),
+		isShielded: false,
+		isDying: false,
+		isDead: false,
+		dyingTimer: NewTimer(dyingAnimationAmmount),
+		dyingCounter: 0,
+		livesRemaining: 1,
 	}
 
 	p.playerObj.SetPosition(pos.X, pos.Y)
@@ -84,6 +97,8 @@ func (p *Player) Draw(screen *ebiten.Image) {
 func (p *Player) Update() {
 	speed := rotationPerSecond / float64(ebiten.TPS())
 
+	p.isPlayerDead()
+
 	if ebiten.IsKeyPressed(ebiten.KeyLeft) {
 		p.rotation -= speed
 	}
@@ -101,6 +116,12 @@ func (p *Player) Update() {
 	p.shootCoolDown.Update()
 
 	p.fireLasers()
+}
+
+func (p *Player) isPlayerDead() {
+	if p.isDead {
+		p.game.playerIsDead = true
+	}
 }
 
 func (p *Player) fireLasers() {
@@ -133,7 +154,7 @@ func (p *Player) fireLasers() {
 func (p *Player) accelerate() {
 	if ebiten.IsKeyPressed(ebiten.KeyUp) {
 		p.keepOnScreen()
-		
+
 		if curAcceleration < maxAcceleration {
 			curAcceleration = p.playerVelocity + 4
 		}
