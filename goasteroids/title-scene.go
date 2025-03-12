@@ -13,12 +13,23 @@ import (
 type TitleScene struct {
 	meteors     map[int]*Meteor // A map of meteors.
 	meteorCount int             // How many meteors we currently have in the game.
+	stars       []*Star         // A slice of stars.
 }
 
 // Draw draws all elements on the screen. It's called once per frame.
 func (t *TitleScene) Draw(screen *ebiten.Image) {
-	// Draw 1 coin 1 play text.
-	textToDraw := "1 coin 1 play"
+	// Draw stars.
+	for _, s := range t.stars {
+		s.Draw(screen)
+	}
+
+	// Draw meteors.
+	for _, m := range t.meteors {
+		m.Draw(screen)
+	}
+
+	// Draw text.
+	textToDraw := "Press space to play"
 
 	op := &text.DrawOptions{
 		LayoutOptions: text.LayoutOptions{
@@ -32,10 +43,7 @@ func (t *TitleScene) Draw(screen *ebiten.Image) {
 		Size:   48,
 	}, op)
 
-	// Draw meteors.
-	for _, m := range t.meteors {
-		m.Draw(screen)
-	}
+
 }
 
 // Update updates all game scene elements for the next draw. It's called once per tick.

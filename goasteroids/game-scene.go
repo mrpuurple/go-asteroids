@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/solarlune/resolv"
 )
 
@@ -15,6 +16,8 @@ const (
 	meteorSpeedUpAmount  = 0.1                     // How much do we speed a meteor up when it's timer runs out.
 	meteorSpeedUpTime    = 1000 * time.Millisecond // How long to wait to speed up meteors.
 	cleanUpExplosionTime = 200 * time.Millisecond  // How long to wait before cleaning up an explosion.
+	baseBeatWaitTime     = 1600
+	numberOfStars        = 1000
 )
 
 // GameScene is the overall type for a game scene (e.g. TitleScene, GameScene, etc.).
@@ -34,30 +37,71 @@ type GameScene struct {
 	explosionSprite      *ebiten.Image
 	explosionFrames      []*ebiten.Image
 	cleanUpTimer         *Timer
-	playerIsDead		 bool
+	playerIsDead         bool
+	audioContext         *audio.Context
+	thrustPlayer         *audio.Player
+	exhaust              *Exhaust
+	laserOnePlayer       *audio.Player
+	laserTwoPlayer       *audio.Player
+	laserThreePlayer     *audio.Player
+	explosionPlayer      *audio.Player
+	beatOnePlayer        *audio.Player
+	beatTwoPlayer        *audio.Player
+	beatTimer            *Timer
+	beatWaitTime         int
+	playBeatOne          bool
+	playBeatTwo          bool
+	stars                []*Star
 }
 
 // NewGameScene is a factory method for producing a new game. It's called once,
 // when game play starts (and again when game play restarts).
 func NewGameScene() *GameScene {
 	g := &GameScene{
-		meteorSpawnTimer: NewTimer(meteorSpawnTime),
-		baseVelocity:     baseMeteorVelocity,
-		velocityTimer:    NewTimer(meteorSpeedUpTime),
-		meteors:          make(map[int]*Meteor),
-		meteorCount:      0,
-		meteorsForLevel:  2,
-		space:            resolv.NewSpace(ScreenWidth, ScreenHeight, 16, 16),
-		lasers:           make(map[int]*Laser),
-		laserCount:       0,
-		explosionSprite: assets.ExplosionSprite,
+		meteorSpawnTimer:     NewTimer(meteorSpawnTime),
+		baseVelocity:         baseMeteorVelocity,
+		velocityTimer:        NewTimer(meteorSpeedUpTime),
+		meteors:              make(map[int]*Meteor),
+		meteorCount:          0,
+		meteorsForLevel:      2,
+		space:                resolv.NewSpace(ScreenWidth, ScreenHeight, 16, 16),
+		lasers:               make(map[int]*Laser),
+		laserCount:           0,
+		explosionSprite:      assets.ExplosionSprite,
 		explosionSmallSprite: assets.ExplosionSmallSprite,
-		cleanUpTimer: NewTimer(cleanUpExplosionTime),
+		cleanUpTimer:         NewTimer(cleanUpExplosionTime),
+		beatTimer:            NewTimer(2 * time.Second),
+		beatWaitTime:         baseBeatWaitTime,
 	}
 	g.player = NewPlayer(g)
 	g.space.Add(g.player.playerObj)
+	g.stars = GenerateStars(numberOfStars)
 
 	g.explosionFrames = assets.Explosion
+
+	// Load audio.
+	g.audioContext = audio.NewContext(48000)
+
+	thrustPlayer, _ := g.audioContext.NewPlayer(assets.ThrustSound)
+	g.thrustPlayer = thrustPlayer
+
+	laserOnePlayer, _ := g.audioContext.NewPlayer(assets.LaserOneSound)
+	g.laserOnePlayer = laserOnePlayer
+
+	laserTwoPlayer, _ := g.audioContext.NewPlayer(assets.LaserTwoSound)
+	g.laserTwoPlayer = laserTwoPlayer
+
+	laserThreePlayer, _ := g.audioContext.NewPlayer(assets.LaserThreeSound)
+	g.laserThreePlayer = laserThreePlayer
+
+	explosionPlayer, _ := g.audioContext.NewPlayer(assets.ExplosionSound)
+	g.explosionPlayer = explosionPlayer
+
+	beatOnePlayer, _ := g.audioContext.NewPlayer(assets.BeatOneSound)
+	g.beatOnePlayer = beatOnePlayer
+
+	beatTwoPlayer, _ := g.audioContext.NewPlayer(assets.BeatTwoSound)
+	g.beatTwoPlayer = beatTwoPlayer
 
 	return g
 }
@@ -65,6 +109,8 @@ func NewGameScene() *GameScene {
 // Update updates all game scene elements for the next draw. It's called once per tick.
 func (g *GameScene) Update(state *State) error {
 	g.player.Update()
+
+	g.updateExhaust()
 
 	g.isPlayerDying()
 
@@ -88,12 +134,25 @@ func (g *GameScene) Update(state *State) error {
 
 	g.cleanUpMeteorsAndAliens()
 
+	g.beatSound()
+
 	return nil
 }
 
 // Draw draws all game scene elements to the screen. It's called once per frame.
 func (g *GameScene) Draw(screen *ebiten.Image) {
+	// Draw stars.
+	for _, s := range g.stars {
+		s.Draw(screen)
+	}
+
+	// Draw player.
 	g.player.Draw(screen)
+
+	// Draw exhaust.
+	if g.exhaust != nil {
+		g.exhaust.Draw(screen)
+	}
 
 	// Draw meteors.
 	for _, m := range g.meteors {
@@ -111,6 +170,34 @@ func (g *GameScene) Layout(outsideWidth, outsideHeight int) (ScreenWidth, Screen
 	return outsideWidth, outsideHeight
 }
 
+func (g *GameScene) beatSound() {
+	g.beatTimer.Update()
+	if g.beatTimer.IsReady() {
+		if g.playBeatOne {
+			_ = g.beatOnePlayer.Rewind()
+			g.beatOnePlayer.Play()
+			g.beatTimer.Reset()
+		} else {
+			_ = g.beatTwoPlayer.Rewind()
+			g.beatTwoPlayer.Play()
+			g.beatTimer.Reset()
+		}
+		g.playBeatOne = !g.playBeatOne
+
+		// Speed up the timer.
+		if g.beatWaitTime > 400 {
+			g.beatWaitTime = g.beatWaitTime - 25
+			g.beatTimer = NewTimer(time.Millisecond * time.Duration(g.beatWaitTime))
+		}
+	}
+}
+
+func (g *GameScene) updateExhaust() {
+	if g.exhaust != nil {
+		g.exhaust.Update()
+	}
+}
+
 func (g *GameScene) isMeteorHitByPlayerLaser() {
 	for _, m := range g.meteors {
 		for _, l := range g.lasers {
@@ -119,6 +206,11 @@ func (g *GameScene) isMeteorHitByPlayerLaser() {
 					// Small meteor hit.
 					m.sprite = g.explosionSmallSprite
 					g.score++
+
+					if !g.explosionPlayer.IsPlaying() {
+						_ = g.explosionPlayer.Rewind()
+						g.explosionPlayer.Play()
+					}
 				} else {
 					// Large meteor hit.
 					oldPos := m.position
@@ -127,10 +219,15 @@ func (g *GameScene) isMeteorHitByPlayerLaser() {
 
 					g.score++
 
+					if !g.explosionPlayer.IsPlaying() {
+						_ = g.explosionPlayer.Rewind()
+						g.explosionPlayer.Play()
+					}
+
 					numToSpawn := rand.IntN(numberOfSmallMeteorsFromLargeMeteor)
 					for i := 0; i < numToSpawn; i++ {
 						meteor := NewSmallMeteor(baseMeteorVelocity, g, len(m.game.meteors)-1)
-						meteor.position = Vector{oldPos.X + float64(rand.IntN(100-50) + 50), oldPos.Y + float64(rand.IntN(100-50) + 50)}
+						meteor.position = Vector{oldPos.X + float64(rand.IntN(100-50)+50), oldPos.Y + float64(rand.IntN(100-50)+50)}
 						meteor.meteorObj.SetPosition(meteor.position.X, meteor.position.Y)
 						g.space.Add(meteor.meteorObj)
 						g.meteorCount++
@@ -164,7 +261,8 @@ func (g *GameScene) isPlayerDead(state *State) {
 	if g.player.isDead {
 		g.player.livesRemaining--
 		if g.player.livesRemaining == 0 {
-			state.SceneManager.GoToScene(NewGameScene())
+			g.Reset()
+			state.SceneManager.GoToScene(g)
 		}
 	}
 }
@@ -197,6 +295,11 @@ func (g *GameScene) isPlayerCollidingWithMeteor() {
 		if m.meteorObj.IsIntersecting(g.player.playerObj) {
 			if !g.player.isShielded {
 				m.game.player.isDying = true
+
+				if !g.explosionPlayer.IsPlaying() {
+					_ = g.explosionPlayer.Rewind()
+					g.explosionPlayer.Play()
+				}
 				break
 			} else {
 				// Bounce the meteor off the player.
@@ -216,4 +319,21 @@ func (g *GameScene) cleanUpMeteorsAndAliens() {
 		}
 		g.cleanUpTimer.Reset()
 	}
+}
+
+func (g *GameScene) Reset() {
+	g.player = NewPlayer(g)
+	g.meteors = make(map[int]*Meteor)
+	g.meteorCount = 0
+	g.lasers = make(map[int]*Laser)
+	g.laserCount = 0
+	g.score = 0
+	g.meteorSpawnTimer.Reset()
+	g.baseVelocity = baseMeteorVelocity
+	g.velocityTimer.Reset()
+	g.playerIsDead = false
+	g.exhaust = nil
+	g.space.RemoveAll()
+	g.space.Add(g.player.playerObj)
+	g.stars = GenerateStars(numberOfStars)
 }
