@@ -9,13 +9,16 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/text/v2"
 )
 
-type TitleScene struct{
-	meteors map[int]*Meteor
-	meteorCount int
+// TitleScene is the type for our title scene.
+type TitleScene struct {
+	meteors     map[int]*Meteor // A map of meteors.
+	meteorCount int             // How many meteors we currently have in the game.
 }
 
+// Draw draws all elements on the screen. It's called once per frame.
 func (t *TitleScene) Draw(screen *ebiten.Image) {
-	textToDraw := "1 coin = 1 play"
+	// Draw 1 coin 1 play text.
+	textToDraw := "1 coin 1 play"
 
 	op := &text.DrawOptions{
 		LayoutOptions: text.LayoutOptions{
@@ -29,23 +32,28 @@ func (t *TitleScene) Draw(screen *ebiten.Image) {
 		Size:   48,
 	}, op)
 
+	// Draw meteors.
 	for _, m := range t.meteors {
 		m.Draw(screen)
 	}
 }
 
+// Update updates all game scene elements for the next draw. It's called once per tick.
 func (t *TitleScene) Update(state *State) error {
+	// Check for a spacebar press.
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		state.SceneManager.GoToScene(NewGameScene())
 		return nil
 	}
 
+	// Draw meteors, if appropriate.
 	if len(t.meteors) < 10 {
 		m := NewMeteor(0.25, &GameScene{}, len(t.meteors)-1)
 		t.meteorCount++
 		t.meteors[t.meteorCount] = m
 	}
 
+	// Update meteors.
 	for _, m := range t.meteors {
 		m.Update()
 	}
