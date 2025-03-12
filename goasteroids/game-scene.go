@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	"github.com/hajimehoshi/ebiten/v2/audio"
 	"github.com/solarlune/resolv"
 )
 
@@ -34,30 +35,37 @@ type GameScene struct {
 	explosionSprite      *ebiten.Image
 	explosionFrames      []*ebiten.Image
 	cleanUpTimer         *Timer
-	playerIsDead		 bool
+	playerIsDead         bool
+	audioContext         *audio.Context
+	thrustPlayer         *audio.Player
 }
 
 // NewGameScene is a factory method for producing a new game. It's called once,
 // when game play starts (and again when game play restarts).
 func NewGameScene() *GameScene {
 	g := &GameScene{
-		meteorSpawnTimer: NewTimer(meteorSpawnTime),
-		baseVelocity:     baseMeteorVelocity,
-		velocityTimer:    NewTimer(meteorSpeedUpTime),
-		meteors:          make(map[int]*Meteor),
-		meteorCount:      0,
-		meteorsForLevel:  2,
-		space:            resolv.NewSpace(ScreenWidth, ScreenHeight, 16, 16),
-		lasers:           make(map[int]*Laser),
-		laserCount:       0,
-		explosionSprite: assets.ExplosionSprite,
+		meteorSpawnTimer:     NewTimer(meteorSpawnTime),
+		baseVelocity:         baseMeteorVelocity,
+		velocityTimer:        NewTimer(meteorSpeedUpTime),
+		meteors:              make(map[int]*Meteor),
+		meteorCount:          0,
+		meteorsForLevel:      2,
+		space:                resolv.NewSpace(ScreenWidth, ScreenHeight, 16, 16),
+		lasers:               make(map[int]*Laser),
+		laserCount:           0,
+		explosionSprite:      assets.ExplosionSprite,
 		explosionSmallSprite: assets.ExplosionSmallSprite,
-		cleanUpTimer: NewTimer(cleanUpExplosionTime),
+		cleanUpTimer:         NewTimer(cleanUpExplosionTime),
 	}
 	g.player = NewPlayer(g)
 	g.space.Add(g.player.playerObj)
 
 	g.explosionFrames = assets.Explosion
+
+	// Load audio.
+	g.audioContext = audio.NewContext(48000)
+	thrustPlayer, _ := g.audioContext.NewPlayer(assets.ThrustSound)
+	g.thrustPlayer = thrustPlayer
 
 	return g
 }
@@ -130,7 +138,7 @@ func (g *GameScene) isMeteorHitByPlayerLaser() {
 					numToSpawn := rand.IntN(numberOfSmallMeteorsFromLargeMeteor)
 					for i := 0; i < numToSpawn; i++ {
 						meteor := NewSmallMeteor(baseMeteorVelocity, g, len(m.game.meteors)-1)
-						meteor.position = Vector{oldPos.X + float64(rand.IntN(100-50) + 50), oldPos.Y + float64(rand.IntN(100-50) + 50)}
+						meteor.position = Vector{oldPos.X + float64(rand.IntN(100-50)+50), oldPos.Y + float64(rand.IntN(100-50)+50)}
 						meteor.meteorObj.SetPosition(meteor.position.X, meteor.position.Y)
 						g.space.Add(meteor.meteorObj)
 						g.meteorCount++
