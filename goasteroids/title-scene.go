@@ -3,6 +3,7 @@ package goasteroids
 import (
 	"asteroids/assets"
 	"image/color"
+	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -18,6 +19,16 @@ type TitleScene struct {
 
 var highScore int
 var originalHighScore int
+
+func init() {
+	hs, err := getHighScore()
+	if err != nil {
+		log.Println("Error getting high score:", err)
+	}
+	highScore = hs
+	originalHighScore = hs
+	log.Println("High score:", highScore)
+}
 
 // Draw draws all elements on the screen. It's called once per frame.
 func (t *TitleScene) Draw(screen *ebiten.Image) {

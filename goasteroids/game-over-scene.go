@@ -33,7 +33,6 @@ func (o *GameOverScene) Draw(screen *ebiten.Image) {
 		LayoutOptions: text.LayoutOptions{
 			PrimaryAlign: text.AlignCenter,
 		},
-
 	}
 	op.ColorScale.ScaleWithColor(color.White)
 	op.GeoM.Translate(ScreenWidth/2, ScreenHeight/2+100)
@@ -41,6 +40,21 @@ func (o *GameOverScene) Draw(screen *ebiten.Image) {
 		Source: assets.TitleFont,
 		Size:   48,
 	}, op)
+
+	if o.game.score > originalHighScore {
+		textToDraw = "New High Score!"
+		op = &text.DrawOptions{
+			LayoutOptions: text.LayoutOptions{
+				PrimaryAlign: text.AlignCenter,
+			},
+		}
+		op.ColorScale.ScaleWithColor(color.White)
+		op.GeoM.Translate(ScreenWidth/2, ScreenHeight/2-200)
+		text.Draw(screen, textToDraw, &text.GoTextFace{
+			Source: assets.TitleFont,
+			Size:   48,
+		}, op)
+	}
 }
 
 func (o *GameOverScene) Update(state *State) error {
@@ -56,7 +70,7 @@ func (o *GameOverScene) Update(state *State) error {
 		m.Update()
 	}
 
-	// Check for a spacebar press.
+	// Check to see if spacebar pressed.
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		o.game.Reset()
 		state.SceneManager.GoToScene(o.game)
@@ -68,4 +82,4 @@ func (o *GameOverScene) Update(state *State) error {
 	}
 
 	return nil
-} 
+}
