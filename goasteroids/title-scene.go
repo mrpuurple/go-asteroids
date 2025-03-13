@@ -16,6 +16,9 @@ type TitleScene struct {
 	stars       []*Star         // A slice of stars.
 }
 
+var highScore int
+var originalHighScore int
+
 // Draw draws all elements on the screen. It's called once per frame.
 func (t *TitleScene) Draw(screen *ebiten.Image) {
 	// Draw stars.
