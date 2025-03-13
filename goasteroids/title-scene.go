@@ -27,7 +27,6 @@ func init() {
 	}
 	highScore = hs
 	originalHighScore = hs
-	log.Println("High score:", highScore)
 }
 
 // Draw draws all elements on the screen. It's called once per frame.

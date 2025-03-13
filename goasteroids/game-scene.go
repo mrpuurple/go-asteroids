@@ -141,6 +141,8 @@ func (g *GameScene) Update(state *State) error {
 
 	g.beatSound()
 
+	g.isLevelComplete(state)
+
 	return nil
 }
 
@@ -226,6 +228,36 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 // Layout is necessary to satisfy interface requirements from ebiten.
 func (g *GameScene) Layout(outsideWidth, outsideHeight int) (ScreenWidth, ScreenHeight int) {
 	return outsideWidth, outsideHeight
+}
+
+// isLevelComplete checks to see if the level is complete (all meteors destroyed).
+func (g *GameScene) isLevelComplete(state *State) {
+	if g.meteorCount >= g.meteorsForLevel && len(g.meteors) == 0 {
+		// Level finished, so reset meteor velocity.
+		g.baseVelocity = baseMeteorVelocity
+		// Increase current level by one.
+		g.currentLevel++
+
+		// If we've done 5 levels, add a life.
+		if g.currentLevel%5 == 0 {
+			if g.player.livesRemaining < 6 {
+				g.player.livesRemaining++
+				x := float64(20 + len(g.player.lifeIndicators)*50.0)
+				y := 20.0
+				g.player.lifeIndicators = append(g.player.lifeIndicators, NewLifeIndicator(Vector{X: x, Y: y}))
+		}
+	}
+
+	// Set the beat time to slowest.
+	g.beatWaitTime = baseBeatWaitTime
+
+		// Switch scenes.
+		state.SceneManager.GoToScene(&LevelStartsScene{
+			game:           g,
+			nextLevelTimer: NewTimer(time.Second * 2),
+			stars:          GenerateStars(numberOfStars),
+		})
+	}
 }
 
 func (g *GameScene) beatSound() {
