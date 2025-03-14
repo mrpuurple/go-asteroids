@@ -17,6 +17,8 @@
 | Fire | spacebar |
 | Move forward | keyUp |
 | Move backwards | keyDown |
+| Rotate left | keyLeft |
+| Rotate Right | keyRight |
 | Activate shield | keyS |
 | Activate HyperSpace | keyH |
 | Quit the game in the "Game Over" scene | keyQ |
