@@ -2,11 +2,15 @@ package goasteroids
 
 import (
 	"asteroids/assets"
+	"fmt"
+	"image/color"
+	"log"
 	"math/rand/v2"
 	"time"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/audio"
+	"github.com/hajimehoshi/ebiten/v2/text/v2"
 	"github.com/solarlune/resolv"
 )
 
@@ -15,9 +19,9 @@ const (
 	meteorSpawnTime      = 100 * time.Millisecond  // How long before meteors spawn.
 	meteorSpeedUpAmount  = 0.1                     // How much do we speed a meteor up when it's timer runs out.
 	meteorSpeedUpTime    = 1000 * time.Millisecond // How long to wait to speed up meteors.
-	cleanUpExplosionTime = 200 * time.Millisecond  // How long to wait before cleaning up an explosion.
-	baseBeatWaitTime     = 1600
-	numberOfStars        = 1000
+	cleanUpExplosionTime = 200 * time.Millisecond  // The time to wait for cleaning up explosions.
+	baseBeatWaitTime     = 1600                    // Base number of milliseconds to wait between beats of background. This is an int because we do math on it.
+	numberOfStars        = 1000                    // The number of stars to display on the background.
 )
 
 // GameScene is the overall type for a game scene (e.g. TitleScene, GameScene, etc.).
@@ -30,28 +34,28 @@ type GameScene struct {
 	meteorsForLevel      int             // # of meteors for a level.
 	velocityTimer        *Timer          // The timer used for speeding up meteors.
 	space                *resolv.Space   // The space for all collision objects.
-	lasers               map[int]*Laser
-	laserCount           int
-	score                int
-	explosionSmallSprite *ebiten.Image
-	explosionSprite      *ebiten.Image
-	explosionFrames      []*ebiten.Image
-	cleanUpTimer         *Timer
-	playerIsDead         bool
-	audioContext         *audio.Context
-	thrustPlayer         *audio.Player
-	exhaust              *Exhaust
-	laserOnePlayer       *audio.Player
-	laserTwoPlayer       *audio.Player
-	laserThreePlayer     *audio.Player
-	explosionPlayer      *audio.Player
-	beatOnePlayer        *audio.Player
-	beatTwoPlayer        *audio.Player
-	beatTimer            *Timer
-	beatWaitTime         int
-	playBeatOne          bool
-	playBeatTwo          bool
-	stars                []*Star
+	lasers               map[int]*Laser  // A map of lasers.
+	laserCount           int             // A count of lasers currently in play; used as index for map lasers.
+	score                int             // Current score.
+	explosionSmallSprite *ebiten.Image   // A small explosion object.
+	explosionSprite      *ebiten.Image   // A large explosion object.
+	explosionFrames      []*ebiten.Image // The frames for explosion animation.
+	cleanUpTimer         *Timer          // Timer to clean up objects.
+	playerIsDead         bool            // Is the player dead.
+	audioContext         *audio.Context  // The context used for our audio players.
+	thrustPlayer         *audio.Player   // The audio player for thrust sound.
+	exhaust              *Exhaust        // The object for exhaust (while accelerating).
+	laserOnePlayer       *audio.Player   // The audio player for laser 1.
+	laserTwoPlayer       *audio.Player   // The audio player for laser 2.
+	laserThreePlayer     *audio.Player   // The audio player for laser 3.
+	explosionPlayer      *audio.Player   // The explosion sound player.
+	beatOnePlayer        *audio.Player   // The audio player for beat one (background sounds).
+	beatTwoPlayer        *audio.Player   // The audio player for beat two sound (background sounds).
+	beatTimer            *Timer          // The time for playing beats one and two.
+	beatWaitTime         int             // The time to wait between beats. Reduced over time in each level.
+	playBeatOne          bool            // Should we play beat one? Yes, if true, otherwise play beat two.
+	stars                []*Star         // The stars for background.
+	currentLevel         int             // The current level the player is on.
 }
 
 // NewGameScene is a factory method for producing a new game. It's called once,
@@ -72,6 +76,7 @@ func NewGameScene() *GameScene {
 		cleanUpTimer:         NewTimer(cleanUpExplosionTime),
 		beatTimer:            NewTimer(2 * time.Second),
 		beatWaitTime:         baseBeatWaitTime,
+		currentLevel:         1,
 	}
 	g.player = NewPlayer(g)
 	g.space.Add(g.player.playerObj)
@@ -136,6 +141,8 @@ func (g *GameScene) Update(state *State) error {
 
 	g.beatSound()
 
+	g.isLevelComplete(state)
+
 	return nil
 }
 
@@ -163,11 +170,94 @@ func (g *GameScene) Draw(screen *ebiten.Image) {
 	for _, l := range g.lasers {
 		l.Draw(screen)
 	}
+
+	// Draw life indicators.
+	if len(g.player.lifeIndicators) > 0 {
+		for _, x := range g.player.lifeIndicators {
+			x.Draw(screen)
+		}
+	}
+
+	// Update and draw score.
+	textToDraw := fmt.Sprintf("%06d", g.score)
+	op := &text.DrawOptions{
+		LayoutOptions: text.LayoutOptions{
+			PrimaryAlign: text.AlignCenter,
+		},
+	}
+	op.ColorScale.ScaleWithColor(color.White)
+	op.GeoM.Translate(ScreenWidth/2, 40)
+	text.Draw(screen, textToDraw, &text.GoTextFace{
+		Source: assets.ScoreFont,
+		Size:   24,
+	}, op)
+
+	// Update and draw high score.
+	if g.score >= highScore {
+		highScore = g.score
+	}
+
+	textToDraw = fmt.Sprintf("HIGH SCORE %06d", highScore)
+	op = &text.DrawOptions{
+		LayoutOptions: text.LayoutOptions{
+			PrimaryAlign: text.AlignCenter,
+		},
+	}
+	op.ColorScale.ScaleWithColor(color.White)
+	op.GeoM.Translate(ScreenWidth/2, 75)
+	text.Draw(screen, textToDraw, &text.GoTextFace{
+		Source: assets.ScoreFont,
+		Size:   16,
+	}, op)
+
+	// Update and draw current level.
+	textToDraw = fmt.Sprintf("LEVEL %d", g.currentLevel)
+	op = &text.DrawOptions{
+		LayoutOptions: text.LayoutOptions{
+			PrimaryAlign: text.AlignCenter,
+		},
+	}
+	op.ColorScale.ScaleWithColor(color.White)
+	op.GeoM.Translate(ScreenWidth/2, ScreenHeight-40)
+	text.Draw(screen, textToDraw, &text.GoTextFace{
+		Source: assets.LevelFont,
+		Size:   16,
+	}, op)
 }
 
 // Layout is necessary to satisfy interface requirements from ebiten.
 func (g *GameScene) Layout(outsideWidth, outsideHeight int) (ScreenWidth, ScreenHeight int) {
 	return outsideWidth, outsideHeight
+}
+
+// isLevelComplete checks to see if the level is complete (all meteors destroyed).
+func (g *GameScene) isLevelComplete(state *State) {
+	if g.meteorCount >= g.meteorsForLevel && len(g.meteors) == 0 {
+		// Level finished, so reset meteor velocity.
+		g.baseVelocity = baseMeteorVelocity
+		// Increase current level by one.
+		g.currentLevel++
+
+		// If we've done 5 levels, add a life.
+		if g.currentLevel%5 == 0 {
+			if g.player.livesRemaining < 6 {
+				g.player.livesRemaining++
+				x := float64(20 + len(g.player.lifeIndicators)*50.0)
+				y := 20.0
+				g.player.lifeIndicators = append(g.player.lifeIndicators, NewLifeIndicator(Vector{X: x, Y: y}))
+		}
+	}
+
+	// Set the beat time to slowest.
+	g.beatWaitTime = baseBeatWaitTime
+
+		// Switch scenes.
+		state.SceneManager.GoToScene(&LevelStartsScene{
+			game:           g,
+			nextLevelTimer: NewTimer(time.Second * 2),
+			stars:          GenerateStars(numberOfStars),
+		})
+	}
 }
 
 func (g *GameScene) beatSound() {
@@ -258,11 +348,36 @@ func (g *GameScene) isPlayerDying() {
 }
 
 func (g *GameScene) isPlayerDead(state *State) {
-	if g.player.isDead {
+	if g.playerIsDead {
 		g.player.livesRemaining--
 		if g.player.livesRemaining == 0 {
+
+			// New High Score?
+			if g.score > originalHighScore {
+				err := updateHighScore(g.score)
+				if err != nil {
+					log.Println(err)
+				}
+			}
+
+			state.SceneManager.GoToScene(&GameOverScene{
+				game:        g,
+				meteors:     make(map[int]*Meteor),
+				meteorCount: 5,
+				stars:       GenerateStars(numberOfStars),
+			})
+		} else {
+			score := g.score
+			livesRemaining := g.player.livesRemaining
+			lifeSlice := g.player.lifeIndicators[:len(g.player.lifeIndicators)-1]
+			stars := g.stars
+
 			g.Reset()
-			state.SceneManager.GoToScene(g)
+
+			g.player.livesRemaining = livesRemaining
+			g.score = score
+			g.player.lifeIndicators = lifeSlice
+			g.stars = stars
 		}
 	}
 }
@@ -302,7 +417,7 @@ func (g *GameScene) isPlayerCollidingWithMeteor() {
 				}
 				break
 			} else {
-				// Bounce the meteor off the player.
+				// Bounce the meteor.
 			}
 		}
 	}

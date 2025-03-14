@@ -3,6 +3,7 @@ package goasteroids
 import (
 	"asteroids/assets"
 	"image/color"
+	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
@@ -14,6 +15,18 @@ type TitleScene struct {
 	meteors     map[int]*Meteor // A map of meteors.
 	meteorCount int             // How many meteors we currently have in the game.
 	stars       []*Star         // A slice of stars.
+}
+
+var highScore int
+var originalHighScore int
+
+func init() {
+	hs, err := getHighScore()
+	if err != nil {
+		log.Println("Error getting high score:", err)
+	}
+	highScore = hs
+	originalHighScore = hs
 }
 
 // Draw draws all elements on the screen. It's called once per frame.

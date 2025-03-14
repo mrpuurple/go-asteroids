@@ -1,0 +1,30 @@
+# Go binary files
+/bin/
+/obj/
+/*.exe
+/*.exe~
+/*.out
+
+# Vendor directory
+/vendor/
+
+# Go workspace files
+go.work
+go.work.sum
+
+# IDE or editor configurations
+*.idea/
+*.vscode/
+*.swp
+*.swo
+
+# Test binary files
+*.test
+
+# Coverage files
+*.cov
+coverage.out
+
+# Dependency directories
+.gopath/
+.gocache/
