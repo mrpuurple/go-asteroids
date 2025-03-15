@@ -28,3 +28,9 @@ coverage.out
 # Dependency directories
 .gopath/
 .gocache/
+
+# vscode
+.DS*
+
+# build files
+info.plist
