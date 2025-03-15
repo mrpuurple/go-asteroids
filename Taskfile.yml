@@ -1,0 +1,44 @@
+version: '3'
+
+
+tasks:
+
+  run:
+    aliases:
+      - start
+      - go
+      - run
+    cmds:
+      - go run .
+
+  build:
+    cmds:
+      - go build -o dist/asteroids .
+
+  dmg:
+    cmds:
+      - task appify
+      - rm -rf dist/Go\ Asteroids.app/
+      - mv "Go Asteroids.app" dist
+      - rm -f dist/asteroids
+      - hdiutil create -volname "Go Asteroids" -srcfolder dist -ov -format UDZO Asteroids.dmg
+
+  build-wasm:
+    cmds:
+      - env GOOS=js GOARCH=wasm go build -o wasm/asteroids.wasm .
+
+  serve:
+    deps: [build-wasm]
+    cmds:
+      - cd wasm && python -m http.server 4000
+
+  appify:
+    - task: build
+    - appify -author "Nichlas Handstedt" -version "v1.0.0" -name "Go Asteroids" -icon ./assets/images/icon.png ./dist/asteroids
+
+  clean:
+    cmds:
+      - go clean
+      - rm -rf dist/*
+      - rm -f Asteroids.dmg
+      - rm -rf "Go Asteroids.app"

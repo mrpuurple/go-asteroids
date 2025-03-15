@@ -4,6 +4,7 @@
   - [Gameplay](#gameplay)
   - [Initial setup](#initial-setup)
     - [Get dependencies](#get-dependencies)
+      - [Deploy section (optional)](#deploy-section-optional)
     - [Create the program](#create-the-program)
     - [Start coding 😊](#start-coding-)
     - [Run the program](#run-the-program)
@@ -34,6 +35,12 @@ go mod init asteroids
 ```sh
 go get github.com/hajimehoshi/ebiten/v2
 go get github.com/solarlune/resolv@v0.8
+```
+
+#### Deploy section (optional)
+
+```sh
+go install github.com/machinebox/appify@latest
 ```
 
 ### Create the program
