@@ -34,3 +34,7 @@ coverage.out
 
 # build files
 info.plist
+
+# do not include the builds
+/dist/
+Asteroids.dmg
