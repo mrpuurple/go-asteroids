@@ -28,3 +28,13 @@ coverage.out
 # Dependency directories
 .gopath/
 .gocache/
+
+# vscode
+.DS*
+
+# build files
+info.plist
+
+# do not include the builds
+/dist/
+Asteroids.dmg

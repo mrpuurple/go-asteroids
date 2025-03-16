@@ -24,7 +24,7 @@ const (
 	baseBeatWaitTime     = 1600                    // Base number of milliseconds to wait between beats of background. This is an int because we do math on it.
 	numberOfStars        = 1000                    // The number of stars to display on the background.
 	alienAttackTime      = 3 * time.Second         // The time between alien attacks.
-	alienSpawnTime       = 20 * time.Second        // The time between alien spawns.
+	alienSpawnTime       = 12 * time.Second        // The time between alien spawns.
 	baseAlienVelocity    = 0.5                     // The base velocity for aliens.
 )
 
